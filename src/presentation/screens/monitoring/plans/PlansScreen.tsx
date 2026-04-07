@@ -12,6 +12,8 @@ import {
 } from '@react-navigation/native';
 import { RootStackParams } from '../../../routes/StackNavigator';
 import { PlanList } from './components/PlansList';
+import { PlanSearchBar } from './components/PlanSearchBar';
+import { PlanEmptyState } from './components/PlanEmptyState';
 import { Institution, MonitoringPlan, Site } from '../../../../core/entities';
 import {
   BUSINESS_RULES,
@@ -32,6 +34,8 @@ export const PlansScreen = () => {
 
   // plans grid states
   const [plans, setPlans] = useState<MonitoringPlan[]>([]);
+  const [filteredPlans, setFilteredPlans] = useState<MonitoringPlan[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [lastKeyForPaginate, setLastKeyForPaginate] = useState<string>('');
   const [pageSize, setPageSize] = useState<number>(10);
   const [flagShowMore, setFlagShowMore] = useState<boolean>(true);
@@ -50,6 +54,24 @@ export const PlansScreen = () => {
     );
     if (currentSite) searchHandler(currentSite);
   }, [currentSite]);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery.trim() === '') {
+        setFilteredPlans(plans);
+      } else {
+        const query = searchQuery.toLowerCase().trim();
+        const filtered = plans.filter(plan => {
+          const nameMatch = plan.name?.toLowerCase().includes(query);
+          const codeMatch = plan.code?.toLowerCase().includes(query);
+          return nameMatch || codeMatch;
+        });
+        setFilteredPlans(filtered);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, plans]);
 
   const searchHandler = (site: Site) => {
     if (isLoading) {
@@ -72,7 +94,6 @@ export const PlansScreen = () => {
 
     setWithError(false);
     setIsLoading(true);
-    console.log('get plans', site);
     getPlans(
       { page: 1, pageSize: pageSize } as any,
       '', //pageSise
@@ -120,14 +141,19 @@ export const PlansScreen = () => {
           <Text style={styles.title}>Planes de monitoreo</Text>
         </View>
       </View>
+      <PlanSearchBar value={searchQuery} onChangeText={setSearchQuery} />
       <ScrollView style={globalStyles.container}>
-        <PlanList
-          plans={plans}
-          loading={isLoading}
-          showMore={flagShowMore}
-          loadHandler={() => searchHandler(currentSite!)}
-          onReload={() => searchHandler(currentSite!)}
-        />
+        {filteredPlans.length === 0 && searchQuery.trim() !== '' ? (
+          <PlanEmptyState />
+        ) : (
+          <PlanList
+            plans={filteredPlans.length > 0 || searchQuery.trim() !== '' ? filteredPlans : plans}
+            loading={isLoading}
+            showMore={flagShowMore && searchQuery.trim() === ''}
+            loadHandler={() => searchHandler(currentSite!)}
+            onReload={() => searchHandler(currentSite!)}
+          />
+        )}
       </ScrollView>
     </>
   );
@@ -158,7 +184,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   label: {
-    backgroundColor: '#4d4d4d',
+    backgroundColor: '#575656',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 10,
