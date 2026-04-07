@@ -1,0 +1,9 @@
+{
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "typeRoots": ["./src/types", "./node_modules/@types"], // Ruta para tipos personalizados y de terceros
+    "types": ["react", "react-native", "node"], // Tipos de bibliotecas externas
+    "skipLibCheck": true
+  },
+  "include": ["src", "src/types", "**/*.ts", "**/*.tsx"] // Asegúrate de incluir la carpeta `src/types`
+}

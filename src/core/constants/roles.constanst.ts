@@ -1,0 +1,7 @@
+export const ROLE_ADMINISTRATOR = 'GSV3_001';
+export const ROLE_SPECIALIST_DRE = 'GSV3_003';
+export const ROLE_SPECIALIST_UGEL = 'GSV3_004';
+export const ROLE_SPECIALIST_MINEDU = 'GSV3_002';
+export const ROLE_MONITOR = 'GSV3_005';
+export const ROLE_DIRECTOR_IIEE = 'GSV3_006';
+export const ROLE_TEACHER_IIEE = 'GSV3_007';
