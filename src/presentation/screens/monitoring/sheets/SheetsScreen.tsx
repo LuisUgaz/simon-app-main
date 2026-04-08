@@ -117,6 +117,12 @@ export const SheetsScreen = () => {
           />
           <View style={styles.rightSection}>
             <RoundButton
+              testID="home-button"
+              icon="home"
+              light
+              action={() => navigation.navigate('Home')}
+            />
+            <RoundButton
               icon="information-outline"
               light
               action={handleInfoPress}
