@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { globalColors, globalStyles } from '../../../theme/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RoundButton } from '../../../components';
@@ -11,6 +11,7 @@ import {
 } from '@react-navigation/native';
 import { RootStackParams } from '../../../routes/StackNavigator';
 import { SheetsList } from './components/SheetsList';
+import { SearchBar, EmptyState } from '../../../components/shared';
 import { PlanInfoModal } from './components/PlanInfoModal';
 import { MonitoringInstrument, MonitoringPlan } from '../../../../core/entities';
 import { StatusPageResponse } from '../../../../infraestructure';
@@ -31,54 +32,71 @@ export const SheetsScreen = () => {
 
   // instruments grid states
   const [instruments, setInstruments] = useState<MonitoringInstrument[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [lastKeyForPaginate, setLastKeyForPaginate] = useState<string>('');
   const [pageSize] = useState<number>(10);
   const [flagShowMore, setFlagShowMore] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [_withError, setWithError] = useState<boolean>(false);
+  const [withError, setWithError] = useState<boolean>(false);
 
-  useEffect(() => {
-    setCurrentPlan(params.plan);
-    if (params.plan) searchHandler(params.plan);
+  const searchHandler = useCallback((plan: MonitoringPlan, query: string = '', isNewSearch: boolean = false) => {
+    if (isLoading && !isNewSearch) return false;
 
-    return () => {
-      clearInstrument();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const searchHandler = useCallback((plan: MonitoringPlan) => {
-    if (isLoading) {
-      return false;
-    }
+    const currentLastKey = isNewSearch ? '' : lastKeyForPaginate;
 
     setWithError(false);
     setIsLoading(true);
+
+    if (isNewSearch) {
+      setLastKeyForPaginate('');
+      setFlagShowMore(true);
+    }
+
     getInstruments(
       { page: 1, pageSize: pageSize } as any,
-      '', //pageSise
-      lastKeyForPaginate,
+      query,
+      currentLastKey,
       plan.id,
     )
       .then((value: StatusPageResponse<MonitoringInstrument[]>) => {
         setIsLoading(false);
         if (!value.status.success) {
           setWithError(true);
-          setInstruments([]);
+          if (isNewSearch) setInstruments([]);
         } else {
-          if (value['data'].length > 0) {
-            setLastKeyForPaginate(value['data'][value['data'].length - 1].key);
+          const newData = value['data'] || [];
+          if (newData.length > 0) {
+            setLastKeyForPaginate(newData[newData.length - 1].key);
+            setInstruments(prev => isNewSearch ? newData : [...prev, ...newData]);
           } else {
             setFlagShowMore(false);
+            if (isNewSearch) setInstruments([]);
           }
-          setInstruments(instruments.concat(value['data']));
         }
       })
-      .catch(_value => {
+      .catch(() => {
         setIsLoading(false);
         setWithError(true);
       });
-  }, [isLoading, pageSize, lastKeyForPaginate, instruments, getInstruments, setWithError, setIsLoading, setLastKeyForPaginate, setFlagShowMore, setInstruments]);
+  }, [isLoading, pageSize, lastKeyForPaginate, getInstruments]);
+
+  useEffect(() => {
+    setCurrentPlan(params.plan);
+    return () => {
+      clearInstrument();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (params.plan) {
+        searchHandler(params.plan, searchQuery, true);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, params.plan]);
 
   const handleInfoPress = () => {
     setIsModalVisible(true);
@@ -98,28 +116,35 @@ export const SheetsScreen = () => {
             action={() => navigation.goBack()}
           />
           <View style={styles.rightSection}>
-            <View style={styles.label}>
-              <Text style={styles.labelText}>Plan: {currentPlan?.code}</Text>
-            </View>
-            <Pressable style={styles.infoButton} onPress={handleInfoPress}>
-              <Ionicons name="information-circle-outline" size={24} color="#494949" />
-            </Pressable>
+            <RoundButton
+              icon="information-outline"
+              light
+              action={handleInfoPress}
+            />
           </View>
         </View>
         <View style={styles.titles}>
           <Text style={styles.title}>Fichas de monitoreo</Text>
         </View>
       </View>
+      <SearchBar 
+        value={searchQuery} 
+        onChangeText={setSearchQuery} 
+        placeholder="Buscar ficha..." 
+      />
       <ScrollView style={globalStyles.container}>
-        <SheetsList
-          instruments={instruments}
-          loading={isLoading}
-          showMore={flagShowMore}
-          loadHandler={() => searchHandler(currentPlan!)}
-          onReload={() => searchHandler(currentPlan!)}
-        />
+        {instruments.length === 0 && !isLoading && !withError ? (
+          <EmptyState message="No se encontraron fichas de monitoreo" />
+        ) : (
+          <SheetsList
+            instruments={instruments}
+            loading={isLoading}
+            showMore={flagShowMore}
+            loadHandler={() => searchHandler(params.plan, searchQuery, false)}
+            onReload={() => searchHandler(params.plan, searchQuery, true)}
+          />
+        )}
       </ScrollView>
-
       <PlanInfoModal
         visible={isModalVisible}
         onClose={handleCloseModal}

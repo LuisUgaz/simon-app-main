@@ -1,16 +1,20 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { globalColors } from '../../../../theme/theme';
+import { globalColors } from '../../theme/theme';
 
 interface Props {
   message?: string;
+  icon?: string;
 }
 
-export const PlanEmptyState = ({ message = 'No se encontraron planes de monitoreo' }: Props) => {
+export const EmptyState = ({ 
+  message = 'No se encontraron resultados', 
+  icon = 'search-outline' 
+}: Props) => {
   return (
     <View style={styles.container}>
-      <Icon name="search-outline" size={64} color={globalColors.gray} />
+      <Icon name={icon} size={64} color={globalColors.gray} />
       <Text style={styles.text}>{message}</Text>
     </View>
   );

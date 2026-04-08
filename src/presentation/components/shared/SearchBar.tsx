@@ -1,19 +1,20 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { TextInput } from 'react-native-paper';
-import { globalColors } from '../../../../theme/theme';
+import { globalColors } from '../../theme/theme';
 
 interface Props {
   value: string;
   onChangeText: (text: string) => void;
+  placeholder?: string;
 }
 
-export const PlanSearchBar = ({ value, onChangeText }: Props) => {
+export const SearchBar = ({ value, onChangeText, placeholder = 'Buscar...' }: Props) => {
   return (
     <View style={styles.container}>
       <TextInput
         mode="outlined"
-        placeholder="Buscar plan..."
+        placeholder={placeholder}
         placeholderTextColor={globalColors.gray}
         textColor={globalColors.dark}
         value={value}

@@ -99,12 +99,17 @@ export const SamplesScreen = () => {
   }, [navigation]);
 
   useEffect(() => {
-    setCurrentInstrument(params.sheet);
     if (params.sheet) {
+      setCurrentInstrument(params.sheet);
+      // Reiniciar estados antes de la carga inicial
+      setSamples([]);
+      setLastKeyForPaginate('');
+      setPage(1);
+      setFlagShowMore(true);
       searchHandler(params.sheet);
     }
 
-    console.log('params.sheet', params.sheet);
+    console.log('Cargando muestras para ficha:', params.sheet?.code);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

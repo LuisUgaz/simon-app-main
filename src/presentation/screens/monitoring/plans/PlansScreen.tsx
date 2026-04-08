@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { globalColors, globalStyles } from '../../../theme/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,9 +12,8 @@ import {
 } from '@react-navigation/native';
 import { RootStackParams } from '../../../routes/StackNavigator';
 import { PlanList } from './components/PlansList';
-import { PlanSearchBar } from './components/PlanSearchBar';
-import { PlanEmptyState } from './components/PlanEmptyState';
-import { Institution, MonitoringPlan, Site } from '../../../../core/entities';
+import { SearchBar, EmptyState } from '../../../components/shared';
+import { MonitoringPlan, Site } from '../../../../core/entities';
 import {
   BUSINESS_RULES,
   ROLE_DIRECTOR_IIEE,
@@ -34,10 +33,9 @@ export const PlansScreen = () => {
 
   // plans grid states
   const [plans, setPlans] = useState<MonitoringPlan[]>([]);
-  const [filteredPlans, setFilteredPlans] = useState<MonitoringPlan[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [lastKeyForPaginate, setLastKeyForPaginate] = useState<string>('');
-  const [pageSize, setPageSize] = useState<number>(10);
+  const [pageSize] = useState<number>(10);
   const [flagShowMore, setFlagShowMore] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [withError, setWithError] = useState<boolean>(false);
@@ -52,31 +50,23 @@ export const PlansScreen = () => {
           ? 'Ejecución'
           : 'Muestras',
     );
-    if (currentSite) searchHandler(currentSite);
-  }, [currentSite]);
+  }, [params.mode]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      if (searchQuery.trim() === '') {
-        setFilteredPlans(plans);
-      } else {
-        const query = searchQuery.toLowerCase().trim();
-        const filtered = plans.filter(plan => {
-          const nameMatch = plan.name?.toLowerCase().includes(query);
-          const codeMatch = plan.code?.toLowerCase().includes(query);
-          return nameMatch || codeMatch;
-        });
-        setFilteredPlans(filtered);
+      if (currentSite) {
+        searchHandler(currentSite, searchQuery, true);
       }
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, plans]);
+  }, [searchQuery, currentSite]);
 
-  const searchHandler = (site: Site) => {
-    if (isLoading) {
-      return false;
-    }
+  const searchHandler = (site: Site, query: string = '', isNewSearch: boolean = false) => {
+    if (isLoading && !isNewSearch) return false;
+
+    const currentLastKey = isNewSearch ? '' : lastKeyForPaginate;
+    
     // determina si es usuario administrador
     let isDirector = currentSite?.roleCode === ROLE_DIRECTOR_IIEE;
     if (!isDirector) { isDirector = currentSite?.roleCode === ROLE_TEACHER_IIEE; }
@@ -84,23 +74,27 @@ export const PlansScreen = () => {
       x => x.rol === currentSite?.roleCode,
     );
 
-    setWithoutInstitution(false);
-    if (isDirector) {
-      if (!currentInstitution) {
-        setWithoutInstitution(true);
-        return false;
-      }
+    if (isDirector && !currentInstitution) {
+      setWithoutInstitution(true);
+      return false;
     }
 
+    setWithoutInstitution(false);
     setWithError(false);
     setIsLoading(true);
+
+    if (isNewSearch) {
+      setLastKeyForPaginate('');
+      setFlagShowMore(true);
+    }
+
     getPlans(
       { page: 1, pageSize: pageSize } as any,
-      '', //pageSise
-      lastKeyForPaginate,
+      query,
+      currentLastKey,
       site,
       isDirector,
-      false, // es culminado
+      false,
       codigoActor?.actor,
       isDirector ? currentInstitution : undefined,
     )
@@ -108,17 +102,19 @@ export const PlansScreen = () => {
         setIsLoading(false);
         if (!value.status.success) {
           setWithError(true);
-          setPlans([]);
+          if (isNewSearch) setPlans([]);
         } else {
-          if (value['data'].length > 0) {
-            setLastKeyForPaginate(value['data'][value['data'].length - 1].key);
+          const newData = value['data'] || [];
+          if (newData.length > 0) {
+            setLastKeyForPaginate(newData[newData.length - 1].key);
+            setPlans(prev => isNewSearch ? newData : [...prev, ...newData]);
           } else {
             setFlagShowMore(false);
+            if (isNewSearch) setPlans([]);
           }
-          setPlans(plans.concat(value['data']));
         }
       })
-      .catch(value => {
+      .catch(() => {
         setIsLoading(false);
         setWithError(true);
       });
@@ -141,17 +137,21 @@ export const PlansScreen = () => {
           <Text style={styles.title}>Planes de monitoreo</Text>
         </View>
       </View>
-      <PlanSearchBar value={searchQuery} onChangeText={setSearchQuery} />
+      <SearchBar 
+        value={searchQuery} 
+        onChangeText={setSearchQuery} 
+        placeholder="Buscar plan..." 
+      />
       <ScrollView style={globalStyles.container}>
-        {filteredPlans.length === 0 && searchQuery.trim() !== '' ? (
-          <PlanEmptyState />
+        {plans.length === 0 && !isLoading && !withError ? (
+          <EmptyState message="No se encontraron planes de monitoreo" />
         ) : (
           <PlanList
-            plans={filteredPlans.length > 0 || searchQuery.trim() !== '' ? filteredPlans : plans}
+            plans={plans}
             loading={isLoading}
-            showMore={flagShowMore && searchQuery.trim() === ''}
-            loadHandler={() => searchHandler(currentSite!)}
-            onReload={() => searchHandler(currentSite!)}
+            showMore={flagShowMore}
+            loadHandler={() => searchHandler(currentSite!, searchQuery, false)}
+            onReload={() => searchHandler(currentSite!, searchQuery, true)}
           />
         )}
       </ScrollView>

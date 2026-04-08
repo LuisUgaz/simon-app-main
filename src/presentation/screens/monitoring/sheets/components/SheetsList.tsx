@@ -30,7 +30,7 @@ export const SheetsList = ({
   onReload,
 }: Props) => {
   const navigation = useNavigation<NavigationProp<RootStackParams>>();
-  const getInstrument = useMonitoringStore(state => state.getInstrument);
+  const { getInstrument, setCurrentInstrument } = useMonitoringStore(state => state);
 
   const [loadingSheetId, setLoadingSheetId] = React.useState<string | null>(null);
 
@@ -40,7 +40,10 @@ export const SheetsList = ({
     try {
       const response = await getInstrument(sheet.id);
       console.log('instrument data', response);
-      navigation.navigate('Samples', { sheet: response.data! });
+      if (response.success && response.data) {
+        setCurrentInstrument(response.data); // Sincronizar contexto global
+        navigation.navigate('Samples', { sheet: response.data });
+      }
     } catch (error) {
       console.error('Error fetching instrument:', error);
       // Aquí se podría mostrar un toast o alerta
